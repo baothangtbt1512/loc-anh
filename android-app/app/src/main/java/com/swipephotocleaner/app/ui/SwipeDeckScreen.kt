@@ -40,9 +40,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -74,6 +74,7 @@ import com.swipephotocleaner.app.model.SwipeDecision
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.max
 
 @Composable
 fun SwipeDeckScreen(
@@ -103,14 +104,14 @@ fun SwipeDeckScreen(
     }
 
     val topItem = uiState.deckItems.firstOrNull()
-    LaunchedEffect(topItem?.id) {
-        for (upcoming in uiState.deckItems.take(2)) {
+    LaunchedEffect(topItem?.contentUriString) {
+        for (upcoming in uiState.deckItems.take(3)) {
             launch { bitmapLoader.loadPreview(upcoming) }
         }
     }
 
     // Shared fly-out trigger for both drag and bottom action buttons
-    var pendingButtonAction by remember { mutableStateOf<Pair<Long, SwipeDecision>?>(null) }
+    var pendingButtonAction by remember { mutableStateOf<Pair<String, SwipeDecision>?>(null) }
 
     Scaffold(
         containerColor = CleanerColors.Bg,
@@ -193,34 +194,39 @@ fun SwipeDeckScreen(
                     else -> {
                         val visibleStack = uiState.deckItems.take(2)
                         if (visibleStack.size > 1) {
-                            SwipePhotoCard(
-                                item = visibleStack[1],
-                                bitmapLoader = bitmapLoader,
-                                isTop = false,
-                                externalAction = null,
-                                onConsumeExternalAction = {},
-                                onSwiped = {},
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .graphicsLayer {
-                                        scaleX = 0.97f
-                                        scaleY = 0.97f
-                                        translationY = 10f
-                                        alpha = 0.35f
-                                    }
-                            )
+                            val nextItem = visibleStack[1]
+                            key(nextItem.contentUriString) {
+                                SwipePhotoCard(
+                                    item = nextItem,
+                                    bitmapLoader = bitmapLoader,
+                                    isTop = false,
+                                    externalAction = null,
+                                    onConsumeExternalAction = {},
+                                    onSwiped = {},
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .graphicsLayer {
+                                            scaleX = 0.97f
+                                            scaleY = 0.97f
+                                            translationY = 10f
+                                            alpha = 0.35f
+                                        }
+                                )
+                            }
                         }
 
                         val activeItem = visibleStack[0]
-                        SwipePhotoCard(
-                            item = activeItem,
-                            bitmapLoader = bitmapLoader,
-                            isTop = true,
-                            externalAction = pendingButtonAction?.takeIf { it.first == activeItem.id }?.second,
-                            onConsumeExternalAction = { pendingButtonAction = null },
-                            onSwiped = { decision -> onDecide(activeItem.id, decision) },
-                            modifier = Modifier.fillMaxSize()
-                        )
+                        key(activeItem.contentUriString) {
+                            SwipePhotoCard(
+                                item = activeItem,
+                                bitmapLoader = bitmapLoader,
+                                isTop = true,
+                                externalAction = pendingButtonAction?.takeIf { it.first == activeItem.contentUriString }?.second,
+                                onConsumeExternalAction = { pendingButtonAction = null },
+                                onSwiped = { decision -> onDecide(activeItem.id, decision) },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                     }
                 }
             }
@@ -230,13 +236,13 @@ fun SwipeDeckScreen(
                 hasCard = topItem != null,
                 onUndo = onUndo,
                 onTrash = {
-                    if (topItem != null) pendingButtonAction = topItem.id to SwipeDecision.TRASH
+                    if (topItem != null) pendingButtonAction = topItem.contentUriString to SwipeDecision.TRASH
                 },
                 onFavorite = {
-                    if (topItem != null) pendingButtonAction = topItem.id to SwipeDecision.FAVORITE
+                    if (topItem != null) pendingButtonAction = topItem.contentUriString to SwipeDecision.FAVORITE
                 },
                 onKeep = {
-                    if (topItem != null) pendingButtonAction = topItem.id to SwipeDecision.KEEP
+                    if (topItem != null) pendingButtonAction = topItem.contentUriString to SwipeDecision.KEEP
                 }
             )
         }
@@ -489,20 +495,24 @@ private fun SwipePhotoCard(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val offsetX = remember(item.id) { Animatable(0f) }
-    val offsetY = remember(item.id) { Animatable(0f) }
-    var isAnimatingOut by remember(item.id) { mutableStateOf(false) }
+    val cardKey = item.contentUriString
+    val offsetX = remember(cardKey) { Animatable(0f) }
+    val offsetY = remember(cardKey) { Animatable(0f) }
+    var isAnimatingOut by remember(cardKey) { mutableStateOf(false) }
 
-    var zoomed by remember(item.id) { mutableStateOf(false) }
-    var panX by remember(item.id) { mutableFloatStateOf(0f) }
-    var panY by remember(item.id) { mutableFloatStateOf(0f) }
+    var zoomed by remember(cardKey) { mutableStateOf(false) }
+    var panX by remember(cardKey) { mutableFloatStateOf(0f) }
+    var panY by remember(cardKey) { mutableFloatStateOf(0f) }
     var stageSize by remember { mutableStateOf(IntSize.Zero) }
 
-    val initialCached = remember(item.id) { bitmapLoader.getCachedPreview(item.id) }
-    val preview by produceState<ImageBitmap?>(initialValue = initialCached, key1 = item.id) {
-        if (value == null) {
-            value = bitmapLoader.loadPreview(item)
+    var preview by remember(cardKey) { mutableStateOf(bitmapLoader.getCachedPreview(item)) }
+    var loadFinished by remember(cardKey) { mutableStateOf(preview != null) }
+
+    LaunchedEffect(cardKey) {
+        if (preview == null) {
+            preview = bitmapLoader.loadPreview(item)
         }
+        loadFinished = true
     }
 
     suspend fun flyOutAndCommit(decision: SwipeDecision) {
@@ -511,18 +521,20 @@ private fun SwipePhotoCard(
         zoomed = false
         panX = 0f
         panY = 0f
+        val flyX = max(stageSize.width.toFloat(), 1200f) + 250f
+        val flyY = max(stageSize.height.toFloat(), 1400f) + 250f
         coroutineScope {
             when (decision) {
                 SwipeDecision.KEEP -> {
                     launch { offsetY.animateTo(-40f, tween(180)) }
-                    offsetX.animateTo(1150f, tween(200))
+                    offsetX.animateTo(flyX, tween(200))
                 }
                 SwipeDecision.TRASH -> {
                     launch { offsetY.animateTo(-40f, tween(180)) }
-                    offsetX.animateTo(-1150f, tween(200))
+                    offsetX.animateTo(-flyX, tween(200))
                 }
                 SwipeDecision.FAVORITE -> {
-                    offsetY.animateTo(-1300f, tween(200))
+                    offsetY.animateTo(-flyY, tween(200))
                 }
             }
         }
@@ -545,7 +557,7 @@ private fun SwipePhotoCard(
 
     val interactionModifier = if (isTop) {
         Modifier
-            .pointerInput(item.id, "tap") {
+            .pointerInput(cardKey, "tap") {
                 detectTapGestures(
                     onDoubleTap = { tapOffset ->
                         if (isAnimatingOut) return@detectTapGestures
@@ -566,7 +578,7 @@ private fun SwipePhotoCard(
                     }
                 )
             }
-            .pointerInput(item.id, "drag") {
+            .pointerInput(cardKey, "drag") {
                 detectDragGestures(
                     onDragEnd = {
                         if (isAnimatingOut || zoomed) return@detectDragGestures
@@ -648,10 +660,18 @@ private fun SwipePhotoCard(
                         }
                     }
             )
-        } else {
+        } else if (!loadFinished) {
             CircularProgressIndicator(
                 color = CleanerColors.SkyAccent,
                 modifier = Modifier.size(30.dp)
+            )
+        } else {
+            Text(
+                text = "Không hiển thị được ảnh này\n(${item.displayName})",
+                color = CleanerColors.TextMuted,
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(24.dp)
             )
         }
 

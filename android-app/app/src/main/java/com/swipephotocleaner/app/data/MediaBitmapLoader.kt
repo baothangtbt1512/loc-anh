@@ -15,7 +15,11 @@ import android.util.Size
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import com.swipephotocleaner.app.model.LocalMediaItem
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import kotlin.math.max
 import kotlin.math.min
@@ -29,6 +33,7 @@ import kotlin.math.sqrt
 class MediaBitmapLoader(context: Context) {
     private val appContext = context.applicationContext
     private val resolver = appContext.contentResolver
+    private val loaderScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val previewMaxEdge: Int = run {
         val dm = appContext.resources.displayMetrics
@@ -40,38 +45,59 @@ class MediaBitmapLoader(context: Context) {
         (maxHeapKb / 5).coerceIn(28 * 1024, 96 * 1024)
     }
 
-    private val previewCache = object : LruCache<Long, ImageBitmap>(previewCacheBudgetKb) {
-        override fun sizeOf(key: Long, value: ImageBitmap): Int {
+    private val previewCache = object : LruCache<String, ImageBitmap>(previewCacheBudgetKb) {
+        override fun sizeOf(key: String, value: ImageBitmap): Int {
             val kb = (value.width.toLong() * value.height.toLong() * 4L) / 1024L
             return kb.toInt().coerceAtLeast(1)
         }
     }
 
-    private val thumbCache = LruCache<Long, ImageBitmap>(140)
+    private val inFlightLock = Any()
+    private val inFlightPreviews = HashMap<String, Deferred<ImageBitmap?>>()
 
-    fun getCachedPreview(itemId: Long): ImageBitmap? = previewCache.get(itemId)
+    private val thumbCache = LruCache<String, ImageBitmap>(140)
+
+    fun getCachedPreview(item: LocalMediaItem): ImageBitmap? = previewCache.get(item.contentUriString)
 
     suspend fun loadPreview(item: LocalMediaItem): ImageBitmap? {
-        previewCache.get(item.id)?.let { return it }
+        val cacheKey = item.contentUriString
+        previewCache.get(cacheKey)?.let { return it }
 
-        val bmp = withContext(Dispatchers.IO) {
-            runCatching {
-                val uri = Uri.parse(item.contentUriString)
-                if (item.isVideo) {
-                    loadVideoPreviewBitmap(uri)
-                } else {
-                    loadPhotoPreviewBitmap(uri, item)
+        val deferred: Deferred<ImageBitmap?> = synchronized(inFlightLock) {
+            previewCache.get(cacheKey)?.let { return it }
+            inFlightPreviews[cacheKey] ?: loaderScope.async {
+                val bmp = runCatching {
+                    val uri = Uri.parse(item.contentUriString)
+                    if (item.isVideo) {
+                        loadVideoPreviewBitmap(uri)
+                    } else {
+                        loadPhotoPreviewBitmap(uri, item)
+                    }
+                }.getOrNull()
+
+                val imageBitmap = bmp?.asImageBitmap()
+                if (imageBitmap != null) {
+                    previewCache.put(cacheKey, imageBitmap)
                 }
-            }.getOrNull()
-        } ?: return null
+                imageBitmap
+            }.also { created ->
+                inFlightPreviews[cacheKey] = created
+                created.invokeOnCompletion {
+                    synchronized(inFlightLock) {
+                        if (inFlightPreviews[cacheKey] === created) {
+                            inFlightPreviews.remove(cacheKey)
+                        }
+                    }
+                }
+            }
+        }
 
-        val imageBitmap = bmp.asImageBitmap()
-        previewCache.put(item.id, imageBitmap)
-        return imageBitmap
+        return deferred.await()
     }
 
     suspend fun loadThumbnail(item: LocalMediaItem): ImageBitmap? {
-        thumbCache.get(item.id)?.let { return it }
+        val cacheKey = item.contentUriString
+        thumbCache.get(cacheKey)?.let { return it }
 
         val targetPx = 400
         val bmp = withContext(Dispatchers.IO) {
@@ -86,7 +112,7 @@ class MediaBitmapLoader(context: Context) {
         } ?: return null
 
         val imageBitmap = bmp.asImageBitmap()
-        thumbCache.put(item.id, imageBitmap)
+        thumbCache.put(cacheKey, imageBitmap)
         return imageBitmap
     }
 
