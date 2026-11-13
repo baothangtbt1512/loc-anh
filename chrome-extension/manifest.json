@@ -1,0 +1,70 @@
+{
+  "manifest_version": 3,
+  "name": "Swipe Photo Cleaner — Dọn Ảnh Google Photos",
+  "short_name": "SwipeCleaner",
+  "version": "1.0.0",
+  "description": "Gom ảnh Google Photos theo từng tháng, quẹt phải để Giữ, quẹt trái vào thùng chờ xóa (xem trước tổng GB sẽ giải phóng), quẹt lên Yêu thích và lưu thẳng vào Google Photos.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://photos.google.com/*",
+    "https://*.googleusercontent.com/*"
+  ],
+  "background": {
+    "service_worker": "background/service_worker.js"
+  },
+  "action": {
+    "default_title": "Mở Swipe Photo Cleaner (Alt+Shift+S)",
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "commands": {
+    "toggle-swipe-cleaner": {
+      "suggested_key": {
+        "default": "Alt+Shift+S",
+        "mac": "Alt+Shift+S"
+      },
+      "description": "Bật / tắt giao diện Quẹt Dọn Ảnh trên Google Photos"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://photos.google.com/*"],
+      "js": ["src/page_bridge.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://photos.google.com/*"],
+      "js": [
+        "src/utils/formatters.js",
+        "src/utils/date_parser.js",
+        "src/utils/store.js",
+        "src/google_photos_adapter.js",
+        "src/ui/swipe_overlay.js",
+        "src/content_main.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/ui/swipe_styles.css",
+        "icons/*.png"
+      ],
+      "matches": ["https://photos.google.com/*"]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Back card -->
+    <path
+        android:fillColor="#4038BDF8"
+        android:pathData="M28,28 L66,28 C69,28 72,31 72,34 L72,76 C72,79 69,82 66,82 L28,82 C25,82 22,79 22,76 L22,34 C22,31 25,28 28,28 Z" />
+    <!-- Tilted front swipe card -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:rotation="10">
+        <path
+            android:fillColor="#F8FAFC"
+            android:pathData="M34,24 L76,24 C80,24 83,27 83,31 L83,75 C83,79 80,82 76,82 L34,82 C30,82 27,79 27,75 L27,31 C27,27 30,24 34,24 Z" />
+        <path
+            android:fillColor="#10B981"
+            android:pathData="M34,31 L76,31 L76,61 L34,61 Z" />
+        <path
+            android:fillColor="#F43F5E"
+            android:pathData="M34,67 L52,67 L52,75 L34,75 Z" />
+        <path
+            android:fillColor="#F59E0B"
+            android:pathData="M58,67 L76,67 L76,75 L58,75 Z" />
+    </group>
+</vector>

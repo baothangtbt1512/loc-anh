@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Swipe Photo Cleaner</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="head">
+        <div class="logo">⚡</div>
+        <div>
+          <h1>Swipe Photo Cleaner</h1>
+          <p class="sub">Dọn Google Photos theo tháng bằng thao tác quẹt</p>
+        </div>
+      </header>
+
+      <section class="status-card" id="status-card">
+        <div class="status-row">
+          <span class="dot" id="status-dot"></span>
+          <span id="status-text">Đang kiểm tra tab hiện tại...</span>
+        </div>
+        <div class="stats-grid" id="stats-grid" hidden>
+          <div class="stat">
+            <span class="stat-label">Chờ xóa</span>
+            <strong class="stat-val rose" id="stat-trash">0 ảnh</strong>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Sẽ giải phóng</span>
+            <strong class="stat-val sky" id="stat-bytes">0 B</strong>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Chờ Yêu thích</span>
+            <strong class="stat-val amber" id="stat-fav">0 ảnh</strong>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Đã dọn tổng cộng</span>
+            <strong class="stat-val emerald" id="stat-lifetime">0 B</strong>
+          </div>
+        </div>
+      </section>
+
+      <div class="actions">
+        <button class="btn primary" id="btn-launch" type="button">
+          Mở Giao Diện Quẹt Ảnh
+        </button>
+        <button class="btn secondary" id="btn-sandbox" type="button">
+          Chạy thử trên Sandbox Mô Phỏng
+        </button>
+      </div>
+
+      <footer class="guide">
+        <div><strong>Quẹt phải (→)</strong> Giữ lại • <strong>Quẹt trái (←)</strong> Chờ xóa</div>
+        <div><strong>Quẹt lên (↑)</strong> Yêu thích ♥ • Phím tắt: <code>Alt+Shift+S</code></div>
+      </footer>
+    </div>
+    <script src="popup.js"></script>
+  </body>
+</html>

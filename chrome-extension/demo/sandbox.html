@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sandbox Mô Phỏng Google Photos — Swipe Photo Cleaner</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: #ffffff;
+        color: #1f2937;
+      }
+      .gp-topbar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        height: 64px;
+        padding: 0 24px;
+        background: #fff;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .gp-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 19px;
+        font-weight: 700;
+        color: #1f2937;
+      }
+      .gp-badge {
+        font-size: 11px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: #dbeafe;
+        color: #1d4ed8;
+        font-weight: 700;
+      }
+      .gp-selection-bar {
+        display: none;
+        align-items: center;
+        gap: 12px;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        padding: 6px 14px;
+        border-radius: 999px;
+      }
+      .gp-selection-bar.active {
+        display: flex;
+      }
+      .gp-btn {
+        padding: 7px 12px;
+        border-radius: 8px;
+        border: 1px solid #d1d5db;
+        background: #fff;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .gp-btn.danger {
+        background: #fee2e2;
+        border-color: #fca5a5;
+        color: #b91c1c;
+      }
+      .gp-btn.primary {
+        background: #1a73e8;
+        border-color: #1a73e8;
+        color: #fff;
+      }
+      .gp-tabs {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      main {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 20px 24px 100px;
+      }
+      .gp-section-head {
+        margin: 26px 0 12px;
+        font-size: 16px;
+        font-weight: 700;
+        color: #374151;
+      }
+      .gp-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+        gap: 10px;
+      }
+      .gp-tile {
+        position: relative;
+        aspect-ratio: 1 / 1;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #f3f4f6;
+        border: 2px solid transparent;
+      }
+      .gp-tile.selected {
+        border-color: #1a73e8;
+      }
+      .gp-tile a {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .gp-tile img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .gp-checkbox {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        background: rgba(0, 0, 0, 0.35);
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+      .gp-checkbox[aria-checked="true"] {
+        background: #1a73e8;
+        border-color: #1a73e8;
+      }
+      .gp-fav-mark {
+        position: absolute;
+        bottom: 8px;
+        right: 8px;
+        background: rgba(0, 0, 0, 0.6);
+        color: #fbbf24;
+        padding: 2px 7px;
+        border-radius: 999px;
+        font-size: 12px;
+      }
+      .gp-duration {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: rgba(0, 0, 0, 0.65);
+        color: #fff;
+        padding: 2px 7px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      /* Lightbox Simulator */
+      .gp-lightbox {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        background: rgba(0, 0, 0, 0.94);
+        color: #fff;
+        display: none;
+        flex-direction: column;
+      }
+      .gp-lightbox.open {
+        display: flex;
+      }
+      .gp-lb-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 20px;
+      }
+      .gp-lb-actions {
+        display: flex;
+        gap: 10px;
+      }
+      .gp-lb-btn {
+        padding: 8px 14px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .gp-lb-btn[aria-pressed="true"] {
+        background: rgba(245, 158, 11, 0.28);
+        border-color: #fbbf24;
+        color: #fde68a;
+      }
+      .gp-lb-body {
+        flex: 1;
+        display: flex;
+        min-height: 0;
+      }
+      .gp-lb-stage {
+        flex: 1;
+        display: grid;
+        place-items: center;
+        padding: 20px;
+      }
+      .gp-lb-stage img {
+        max-width: 100%;
+        max-height: 78vh;
+        border-radius: 12px;
+      }
+      .gp-lb-info {
+        width: 280px;
+        background: #111827;
+        border-left: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 20px;
+        display: none;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .gp-lb-info.open {
+        display: flex;
+      }
+      /* Confirm Dialog */
+      .gp-dialog-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 150;
+        background: rgba(0, 0, 0, 0.55);
+        display: none;
+        place-items: center;
+      }
+      .gp-dialog-backdrop.open {
+        display: grid;
+      }
+      .gp-dialog {
+        width: min(400px, 90vw);
+        background: #fff;
+        border-radius: 14px;
+        padding: 22px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .gp-dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="gp-topbar">
+      <div class="gp-brand">
+        <span>Google Photos (Sandbox Mô Phỏng)</span>
+        <span class="gp-badge" id="gp-stats-badge">14 mục • 0 trong Thùng rác</span>
+      </div>
+
+      <div class="gp-selection-bar" id="gp-selection-bar">
+        <span id="gp-selection-count">Đã chọn 0</span>
+        <button type="button" class="gp-btn" aria-label="Bỏ chọn" id="gp-clear-selection">Bỏ chọn</button>
+        <button type="button" class="gp-btn danger" aria-label="Chuyển vào thùng rác" id="gp-toolbar-trash">
+          🗑️ Chuyển vào thùng rác
+        </button>
+      </div>
+
+      <div class="gp-tabs">
+        <button type="button" class="gp-btn primary" id="gp-open-cleaner-btn">⚡ Mở Swipe Photo Cleaner</button>
+        <button type="button" class="gp-btn" id="gp-reset-sandbox-btn">↻ Reset dữ liệu mẫu</button>
+      </div>
+    </header>
+
+    <main role="main" id="gp-main-grid"></main>
+
+    <div class="gp-lightbox" id="gp-lightbox">
+      <div class="gp-lb-bar">
+        <button type="button" class="gp-lb-btn" aria-label="Quay lại" id="gp-lb-back">← Quay lại</button>
+        <div class="gp-lb-actions">
+          <button type="button" class="gp-lb-btn" aria-label="Thông tin" id="gp-lb-info-btn">ⓘ Thông tin</button>
+          <button type="button" class="gp-lb-btn" aria-label="Yêu thích" aria-pressed="false" id="gp-lb-fav-btn">
+            ♡ Yêu thích
+          </button>
+        </div>
+      </div>
+      <div class="gp-lb-body">
+        <div class="gp-lb-stage">
+          <img id="gp-lb-img" src="" alt="" />
+        </div>
+        <aside class="gp-lb-info" role="complementary" aria-label="Thông tin" id="gp-lb-info-panel"></aside>
+      </div>
+    </div>
+
+    <div class="gp-dialog-backdrop" id="gp-dialog-backdrop">
+      <div class="gp-dialog" role="dialog" aria-modal="true">
+        <h3>Chuyển vào thùng rác?</h3>
+        <p id="gp-dialog-desc">Các mục đã chọn sẽ bị xóa khỏi thư viện và nằm trong Thùng rác 60 ngày.</p>
+        <div class="gp-dialog-actions">
+          <button type="button" class="gp-btn" id="gp-dialog-cancel">Hủy</button>
+          <button type="button" class="gp-btn danger" id="gp-dialog-confirm">Chuyển vào thùng rác</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="../src/utils/formatters.js"></script>
+    <script src="../src/utils/date_parser.js"></script>
+    <script src="../src/utils/store.js"></script>
+    <script src="../src/google_photos_adapter.js"></script>
+    <script src="../src/ui/swipe_overlay.js"></script>
+    <script src="sandbox_boot.js"></script>
+  </body>
+</html>
