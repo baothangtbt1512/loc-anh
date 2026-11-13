@@ -101,9 +101,25 @@ object MediaFormatters {
         return "Tháng $monthNum/$year"
     }
 
+    fun formatShortMonthLabel(monthKey: String): String {
+        if (monthKey == "all") return "Tất cả"
+        if (monthKey == "unknown") return "Không rõ"
+        val parts = monthKey.split("-")
+        if (parts.size != 2) return monthKey
+        val year = parts[0]
+        val monthNum = parts[1].toIntOrNull() ?: return monthKey
+        return "T$monthNum/$year"
+    }
+
     fun formatDateTime(epochMs: Long): String {
         if (epochMs <= 0L) return "Chưa rõ ngày"
         val sdf = SimpleDateFormat("dd/MM/yyyy • HH:mm", Locale.getDefault())
+        return sdf.format(Date(epochMs))
+    }
+
+    fun formatDateShort(epochMs: Long): String {
+        if (epochMs <= 0L) return ""
+        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
         return sdf.format(Date(epochMs))
     }
 

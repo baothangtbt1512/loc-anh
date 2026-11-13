@@ -27,6 +27,9 @@ class FormattersTest {
         assertEquals("Tháng 11/2026", MediaFormatters.formatMonthLabel(key))
         assertEquals("Tất cả tháng", MediaFormatters.formatMonthLabel("all"))
         assertEquals("Không rõ tháng", MediaFormatters.formatMonthLabel("unknown"))
+        assertEquals("T11/2026", MediaFormatters.formatShortMonthLabel(key))
+        assertEquals("Tất cả", MediaFormatters.formatShortMonthLabel("all"))
+        assertEquals("13/11/2026", MediaFormatters.formatDateShort(cal.timeInMillis))
     }
 
     @Test

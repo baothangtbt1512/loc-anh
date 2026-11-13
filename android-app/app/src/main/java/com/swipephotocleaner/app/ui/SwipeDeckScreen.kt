@@ -11,19 +11,17 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -32,6 +30,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -40,6 +40,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -51,14 +52,17 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.swipephotocleaner.app.data.MediaBitmapLoader
@@ -91,7 +95,6 @@ fun SwipeDeckScreen(
     onClearStatusMessage: () -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
 
     LaunchedEffect(uiState.statusMessage) {
         val msg = uiState.statusMessage ?: return@LaunchedEffect
@@ -101,7 +104,7 @@ fun SwipeDeckScreen(
 
     val topItem = uiState.deckItems.firstOrNull()
     LaunchedEffect(topItem?.id) {
-        for (upcoming in uiState.deckItems.take(3)) {
+        for (upcoming in uiState.deckItems.take(2)) {
             launch { bitmapLoader.loadPreview(upcoming) }
         }
     }
@@ -117,12 +120,10 @@ fun SwipeDeckScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .statusBarsPadding()
-                .navigationBarsPadding()
         ) {
-            // Top bar
             TopHeaderBar(
                 uiState = uiState,
+                onSelectFilter = onSelectFilter,
                 onRefresh = onRefresh,
                 onOpenReview = onOpenReview
             )
@@ -132,48 +133,41 @@ fun SwipeDeckScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Color(0x28F59E0B))
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                        .padding(horizontal = 12.dp, vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Bạn đang cấp quyền chọn ảnh giới hạn",
+                        text = "Đang chọn ảnh giới hạn",
                         color = Color(0xFFFDE68A),
-                        fontSize = 12.sp,
+                        fontSize = 11.5.sp,
                         modifier = Modifier.weight(1f)
                     )
                     Text(
                         text = "Chọn thêm ảnh",
                         color = CleanerColors.SkyAccent,
-                        fontSize = 12.sp,
+                        fontSize = 11.5.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
                             .clickable(onClick = onRequestMoreAccess)
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
                     )
                 }
             }
 
-            // Filter row
-            FilterChipsRow(
-                activeFilter = uiState.activeFilter,
-                onSelectFilter = onSelectFilter
-            )
-
-            // Month strip
             MonthBucketsStrip(
                 buckets = uiState.monthBuckets,
                 selectedMonth = uiState.selectedMonth,
                 onSelectMonth = onSelectMonth
             )
 
-            // Main swipe card stage
+            // Main photo stage maximized to fill available screen area
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                    .padding(horizontal = 4.dp, vertical = 2.dp),
                 contentAlignment = Alignment.Center
             ) {
                 when {
@@ -198,7 +192,6 @@ fun SwipeDeckScreen(
 
                     else -> {
                         val visibleStack = uiState.deckItems.take(2)
-                        // Render back card first
                         if (visibleStack.size > 1) {
                             SwipePhotoCard(
                                 item = visibleStack[1],
@@ -210,10 +203,10 @@ fun SwipeDeckScreen(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .graphicsLayer {
-                                        scaleX = 0.94f
-                                        scaleY = 0.94f
-                                        translationY = 22f
-                                        alpha = 0.55f
+                                        scaleX = 0.97f
+                                        scaleY = 0.97f
+                                        translationY = 10f
+                                        alpha = 0.35f
                                     }
                             )
                         }
@@ -232,7 +225,6 @@ fun SwipeDeckScreen(
                 }
             }
 
-            // Bottom tactile action dock
             ActionDock(
                 canUndo = uiState.canUndo,
                 hasCard = topItem != null,
@@ -265,6 +257,7 @@ fun SwipeDeckScreen(
 @Composable
 private fun TopHeaderBar(
     uiState: CleanerUiState,
+    onSelectFilter: (MediaFilter) -> Unit,
     onRefresh: () -> Unit,
     onOpenReview: () -> Unit
 ) {
@@ -272,48 +265,91 @@ private fun TopHeaderBar(
     val favCount = uiState.summary.pendingFavoriteItems.size
     val freedPreview = MediaFormatters.formatBytes(uiState.summary.pendingTrashBytes)
     val hasPending = trashCount > 0 || favCount > 0
+    var filterMenuExpanded by remember { mutableStateOf(false) }
+
+    val activeFilterLabel = when (uiState.activeFilter) {
+        MediaFilter.ALL -> "Tất cả"
+        MediaFilter.SCREENSHOT -> "Chụp MH"
+        MediaFilter.VIDEO -> "Video"
+    }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .padding(horizontal = 10.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = "Swipe Dọn Ảnh",
-                color = CleanerColors.TextPrimary,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.ExtraBold
-            )
-            val sub = if (uiState.lifetimeFreedBytes > 0L) {
-                "Đã dọn: ${MediaFormatters.formatBytes(uiState.lifetimeFreedBytes)} • ${uiState.totalMediaCount} mục"
-            } else {
-                "${uiState.totalMediaCount} ảnh/video trên máy"
+        Box {
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(CleanerColors.SurfaceAlt)
+                    .border(1.dp, CleanerColors.Border, RoundedCornerShape(999.dp))
+                    .clickable { filterMenuExpanded = true }
+                    .padding(horizontal = 11.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                Text(
+                    text = "$activeFilterLabel (${uiState.deckItems.size})",
+                    color = CleanerColors.TextPrimary,
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "▾",
+                    color = CleanerColors.TextMuted,
+                    fontSize = 11.sp
+                )
             }
-            Text(
-                text = sub,
-                color = CleanerColors.TextMuted,
-                fontSize = 11.5.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+
+            DropdownMenu(
+                expanded = filterMenuExpanded,
+                onDismissRequest = { filterMenuExpanded = false },
+                containerColor = CleanerColors.Surface
+            ) {
+                val options = listOf(
+                    MediaFilter.ALL to "Tất cả ảnh & video",
+                    MediaFilter.SCREENSHOT to "📱 Ảnh chụp màn hình",
+                    MediaFilter.VIDEO to "🎬 Video"
+                )
+                for ((filter, label) in options) {
+                    val selected = filter == uiState.activeFilter
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = label,
+                                color = if (selected) CleanerColors.SkyAccent else CleanerColors.TextPrimary,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                fontSize = 13.5.sp
+                            )
+                        },
+                        onClick = {
+                            filterMenuExpanded = false
+                            onSelectFilter(filter)
+                        }
+                    )
+                }
+            }
         }
 
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
+                    .size(32.dp)
                     .clip(CircleShape)
                     .background(CleanerColors.SurfaceAlt)
                     .border(1.dp, CleanerColors.Border, CircleShape)
-                    .clickable(onClick = onRefresh)
-                    .padding(horizontal = 10.dp, vertical = 8.dp)
+                    .clickable(onClick = onRefresh),
+                contentAlignment = Alignment.Center
             ) {
-                Text("↻", color = CleanerColors.TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Text("↻", color = CleanerColors.TextMuted, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             }
 
             Box(
@@ -328,60 +364,19 @@ private fun TopHeaderBar(
                     )
                     .border(1.dp, CleanerColors.Border, RoundedCornerShape(999.dp))
                     .clickable(onClick = onOpenReview)
-                    .padding(horizontal = 13.dp, vertical = 8.dp)
+                    .padding(horizontal = 11.dp, vertical = 6.dp)
             ) {
                 Text(
                     text = if (trashCount > 0) {
                         "🗑️ $trashCount • $freedPreview"
                     } else if (favCount > 0) {
-                        "♥ $favCount Yêu thích"
+                        "♥ $favCount"
                     } else {
-                        "🗑️ 0 chờ xóa"
+                        "🗑️ 0"
                     },
                     color = if (hasPending) Color.White else CleanerColors.TextMuted,
-                    fontSize = 12.5.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun FilterChipsRow(
-    activeFilter: MediaFilter,
-    onSelectFilter: (MediaFilter) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 2.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        val options = listOf(
-            MediaFilter.ALL to "Tất cả",
-            MediaFilter.SCREENSHOT to "📱 Chụp màn hình",
-            MediaFilter.VIDEO to "🎬 Video"
-        )
-        for ((filter, label) in options) {
-            val selected = filter == activeFilter
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(if (selected) Color(0x2E38BDF8) else CleanerColors.SurfaceAlt)
-                    .border(
-                        1.dp,
-                        if (selected) Color(0x8838BDF8) else CleanerColors.Border,
-                        RoundedCornerShape(999.dp)
-                    )
-                    .clickable { onSelectFilter(filter) }
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-            ) {
-                Text(
-                    text = label,
-                    color = if (selected) Color(0xFF7DD3FC) else CleanerColors.TextMuted,
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
@@ -395,39 +390,31 @@ private fun MonthBucketsStrip(
     onSelectMonth: (String) -> Unit
 ) {
     val totalRemaining = buckets.sumOf { it.remainingCount }
-    val totalAll = buckets.sumOf { it.totalCount }
 
     LazyRow(
         modifier = Modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 3.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         item(key = "all") {
             val active = selectedMonth == "all"
-            MonthPill(
-                title = "Tất cả tháng",
-                subtitle = "Còn $totalRemaining/$totalAll",
-                trashBadge = null,
+            CompactMonthPill(
+                label = "Tất cả ($totalRemaining)",
+                trashCount = 0,
                 active = active,
-                done = totalRemaining == 0 && totalAll > 0,
+                done = totalRemaining == 0 && buckets.isNotEmpty(),
                 onClick = { onSelectMonth("all") }
             )
         }
 
         items(buckets, key = { it.monthKey }) { bucket ->
             val isDone = bucket.remainingCount == 0
-            val trashTag = if (bucket.pendingTrashCount > 0) {
-                "-${bucket.pendingTrashCount} • ${MediaFormatters.formatBytes(bucket.pendingTrashBytes)}"
-            } else null
+            val shortName = MediaFormatters.formatShortMonthLabel(bucket.monthKey)
+            val label = if (isDone) "$shortName ✓" else "$shortName (${bucket.remainingCount})"
 
-            MonthPill(
-                title = if (isDone) "${bucket.label} ✓" else bucket.label,
-                subtitle = if (isDone) {
-                    "Xong (${bucket.totalCount})"
-                } else {
-                    "Còn ${bucket.remainingCount}/${bucket.totalCount} • ${MediaFormatters.formatBytes(bucket.totalBytes)}"
-                },
-                trashBadge = trashTag,
+            CompactMonthPill(
+                label = label,
+                trashCount = bucket.pendingTrashCount,
                 active = selectedMonth == bucket.monthKey,
                 done = isDone,
                 onClick = { onSelectMonth(bucket.monthKey) }
@@ -437,57 +424,56 @@ private fun MonthBucketsStrip(
 }
 
 @Composable
-private fun MonthPill(
-    title: String,
-    subtitle: String,
-    trashBadge: String?,
+private fun CompactMonthPill(
+    label: String,
+    trashCount: Int,
     active: Boolean,
     done: Boolean,
     onClick: () -> Unit
 ) {
-    Column(
+    Row(
         modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(999.dp))
             .background(
                 when {
-                    active -> Color(0x2C38BDF8)
-                    done -> Color(0x99121826)
+                    active -> Color(0x2E38BDF8)
+                    done -> Color(0x80121826)
                     else -> CleanerColors.Surface
                 }
             )
             .border(
                 1.dp,
                 if (active) Color(0xAA38BDF8) else CleanerColors.Border,
-                RoundedCornerShape(12.dp)
+                RoundedCornerShape(999.dp)
             )
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 7.dp)
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(
-                text = title,
-                color = CleanerColors.TextPrimary,
-                fontSize = 12.5.sp,
-                fontWeight = FontWeight.Bold
-            )
-            if (trashBadge != null) {
-                Text(
-                    text = trashBadge,
-                    color = Color(0xFFFDA4AF),
-                    fontSize = 10.5.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(Color(0x38F43F5E))
-                        .padding(horizontal = 6.dp, vertical = 1.dp)
-                )
-            }
-        }
         Text(
-            text = subtitle,
-            color = CleanerColors.TextMuted,
-            fontSize = 11.sp
+            text = label,
+            color = when {
+                active -> Color(0xFFBAE6FD)
+                done -> CleanerColors.TextMuted
+                else -> CleanerColors.TextPrimary
+            },
+            fontSize = 11.5.sp,
+            fontWeight = if (active) FontWeight.Bold else FontWeight.SemiBold,
+            maxLines = 1
         )
+        if (trashCount > 0) {
+            Text(
+                text = "-$trashCount",
+                color = Color(0xFFFDA4AF),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(Color(0x40F43F5E))
+                    .padding(horizontal = 5.dp, vertical = 1.dp)
+            )
+        }
     }
 }
 
@@ -506,27 +492,37 @@ private fun SwipePhotoCard(
     val offsetX = remember(item.id) { Animatable(0f) }
     val offsetY = remember(item.id) { Animatable(0f) }
     var isAnimatingOut by remember(item.id) { mutableStateOf(false) }
-    var zoomed by remember(item.id) { mutableStateOf(false) }
 
-    val preview by produceState<ImageBitmap?>(initialValue = null, key1 = item.id) {
-        value = bitmapLoader.loadPreview(item)
+    var zoomed by remember(item.id) { mutableStateOf(false) }
+    var panX by remember(item.id) { mutableFloatStateOf(0f) }
+    var panY by remember(item.id) { mutableFloatStateOf(0f) }
+    var stageSize by remember { mutableStateOf(IntSize.Zero) }
+
+    val initialCached = remember(item.id) { bitmapLoader.getCachedPreview(item.id) }
+    val preview by produceState<ImageBitmap?>(initialValue = initialCached, key1 = item.id) {
+        if (value == null) {
+            value = bitmapLoader.loadPreview(item)
+        }
     }
 
     suspend fun flyOutAndCommit(decision: SwipeDecision) {
         if (isAnimatingOut) return
         isAnimatingOut = true
+        zoomed = false
+        panX = 0f
+        panY = 0f
         coroutineScope {
             when (decision) {
                 SwipeDecision.KEEP -> {
-                    launch { offsetY.animateTo(-40f, tween(190)) }
-                    offsetX.animateTo(1100f, tween(210))
+                    launch { offsetY.animateTo(-40f, tween(180)) }
+                    offsetX.animateTo(1150f, tween(200))
                 }
                 SwipeDecision.TRASH -> {
-                    launch { offsetY.animateTo(-40f, tween(190)) }
-                    offsetX.animateTo(-1100f, tween(210))
+                    launch { offsetY.animateTo(-40f, tween(180)) }
+                    offsetX.animateTo(-1150f, tween(200))
                 }
                 SwipeDecision.FAVORITE -> {
-                    offsetY.animateTo(-1250f, tween(210))
+                    offsetY.animateTo(-1300f, tween(200))
                 }
             }
         }
@@ -547,252 +543,231 @@ private fun SwipePhotoCard(
         ((-dy - 35f) / 160f).coerceIn(0f, 1f)
     } else 0f
 
-    val dragModifier = if (isTop) {
-        Modifier.pointerInput(item.id) {
-            detectDragGestures(
-                onDragEnd = {
-                    if (isAnimatingOut) return@detectDragGestures
-                    scope.launch {
-                        when {
-                            offsetY.value < -185f && abs(offsetY.value) > abs(offsetX.value) * 1.1f -> {
-                                flyOutAndCommit(SwipeDecision.FAVORITE)
+    val interactionModifier = if (isTop) {
+        Modifier
+            .pointerInput(item.id, "tap") {
+                detectTapGestures(
+                    onDoubleTap = { tapOffset ->
+                        if (isAnimatingOut) return@detectTapGestures
+                        if (zoomed) {
+                            zoomed = false
+                            panX = 0f
+                            panY = 0f
+                        } else {
+                            zoomed = true
+                            val w = stageSize.width.toFloat().coerceAtLeast(1f)
+                            val h = stageSize.height.toFloat().coerceAtLeast(1f)
+                            val zoomFactor = 2.0f
+                            val maxPanX = w * (zoomFactor - 1f) / 2f
+                            val maxPanY = h * (zoomFactor - 1f) / 2f
+                            panX = ((w / 2f - tapOffset.x) * (zoomFactor - 1f)).coerceIn(-maxPanX, maxPanX)
+                            panY = ((h / 2f - tapOffset.y) * (zoomFactor - 1f)).coerceIn(-maxPanY, maxPanY)
+                        }
+                    }
+                )
+            }
+            .pointerInput(item.id, "drag") {
+                detectDragGestures(
+                    onDragEnd = {
+                        if (isAnimatingOut || zoomed) return@detectDragGestures
+                        scope.launch {
+                            when {
+                                offsetY.value < -185f && abs(offsetY.value) > abs(offsetX.value) * 1.1f -> {
+                                    flyOutAndCommit(SwipeDecision.FAVORITE)
+                                }
+                                offsetX.value > 210f -> {
+                                    flyOutAndCommit(SwipeDecision.KEEP)
+                                }
+                                offsetX.value < -210f -> {
+                                    flyOutAndCommit(SwipeDecision.TRASH)
+                                }
+                                else -> {
+                                    launch { offsetX.animateTo(0f, spring(stiffness = Spring.StiffnessMedium)) }
+                                    launch { offsetY.animateTo(0f, spring(stiffness = Spring.StiffnessMedium)) }
+                                }
                             }
-                            offsetX.value > 210f -> {
-                                flyOutAndCommit(SwipeDecision.KEEP)
-                            }
-                            offsetX.value < -210f -> {
-                                flyOutAndCommit(SwipeDecision.TRASH)
-                            }
-                            else -> {
-                                launch { offsetX.animateTo(0f, spring(stiffness = Spring.StiffnessMedium)) }
-                                launch { offsetY.animateTo(0f, spring(stiffness = Spring.StiffnessMedium)) }
+                        }
+                    },
+                    onDragCancel = {
+                        if (zoomed) return@detectDragGestures
+                        scope.launch {
+                            launch { offsetX.animateTo(0f, spring()) }
+                            launch { offsetY.animateTo(0f, spring()) }
+                        }
+                    },
+                    onDrag = { change, dragAmount ->
+                        if (isAnimatingOut) return@detectDragGestures
+                        change.consume()
+                        if (zoomed) {
+                            val zoomFactor = 2.0f
+                            val maxPanX = stageSize.width.toFloat() * (zoomFactor - 1f) / 2f
+                            val maxPanY = stageSize.height.toFloat() * (zoomFactor - 1f) / 2f
+                            panX = (panX + dragAmount.x).coerceIn(-maxPanX, maxPanX)
+                            panY = (panY + dragAmount.y).coerceIn(-maxPanY, maxPanY)
+                        } else {
+                            scope.launch {
+                                offsetX.snapTo(offsetX.value + dragAmount.x)
+                                offsetY.snapTo(offsetY.value + dragAmount.y)
                             }
                         }
                     }
-                },
-                onDragCancel = {
-                    scope.launch {
-                        launch { offsetX.animateTo(0f, spring()) }
-                        launch { offsetY.animateTo(0f, spring()) }
-                    }
-                },
-                onDrag = { change, dragAmount ->
-                    if (isAnimatingOut) return@detectDragGestures
-                    change.consume()
-                    scope.launch {
-                        offsetX.snapTo(offsetX.value + dragAmount.x)
-                        offsetY.snapTo(offsetY.value + dragAmount.y)
-                    }
-                }
-            )
-        }
+                )
+            }
     } else {
         Modifier
     }
 
-    Column(
+    Box(
         modifier = modifier
             .graphicsLayer {
                 translationX = dx
                 translationY = dy
                 rotationZ = dx * 0.025f
             }
-            .then(dragModifier)
-            .clip(RoundedCornerShape(24.dp))
-            .background(Color(0xFF0C101B))
-            .border(1.dp, Color(0x28FFFFFF), RoundedCornerShape(24.dp))
+            .onSizeChanged { stageSize = it }
+            .then(interactionModifier)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.Black)
+            .border(0.5.dp, Color(0x18FFFFFF), RoundedCornerShape(16.dp)),
+        contentAlignment = Alignment.Center
     ) {
-        // Photo/Video preview area
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .background(Color(0xFF060810)),
-            contentAlignment = Alignment.Center
-        ) {
-            if (preview != null) {
-                Image(
-                    bitmap = preview!!,
-                    contentDescription = item.displayName,
-                    contentScale = if (zoomed) ContentScale.Crop else ContentScale.Fit,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            if (zoomed) {
-                                scaleX = 1.45f
-                                scaleY = 1.45f
-                            }
+        if (preview != null) {
+            Image(
+                bitmap = preview!!,
+                contentDescription = item.displayName,
+                contentScale = ContentScale.Fit,
+                filterQuality = FilterQuality.High,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        if (zoomed) {
+                            scaleX = 2.0f
+                            scaleY = 2.0f
+                            translationX = panX
+                            translationY = panY
                         }
-                )
-            } else {
-                CircularProgressIndicator(
-                    color = CleanerColors.SkyAccent,
-                    modifier = Modifier.size(32.dp)
-                )
-            }
+                    }
+            )
+        } else {
+            CircularProgressIndicator(
+                color = CleanerColors.SkyAccent,
+                modifier = Modifier.size(30.dp)
+            )
+        }
 
-            // Top badges
-            Row(
+        // Subtle zoom hint pill only when zoomed in
+        if (isTop && zoomed) {
+            Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+                    .padding(top = 12.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(Color(0xB8000000))
+                    .clickable {
+                        zoomed = false
+                        panX = 0f
+                        panY = 0f
+                    }
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    CardBadge(
-                        text = MediaFormatters.formatMonthLabel(item.monthKey),
-                        bg = Color(0xCC090D16),
-                        fg = Color(0xFFF1F5F9)
-                    )
-                    if (item.isScreenshot) {
-                        CardBadge(
-                            text = "📱 Ảnh chụp màn hình",
-                            bg = Color(0x55F59E0B),
-                            fg = Color(0xFFFDE68A)
-                        )
-                    }
-                    if (item.isVideo) {
-                        val dur = MediaFormatters.formatDuration(item.durationMs)
-                        CardBadge(
-                            text = if (dur.isNotEmpty()) "🎬 Video $dur" else "🎬 Video",
-                            bg = Color(0x55A855F7),
-                            fg = Color(0xFFE9D5FF)
-                        )
-                    }
-                    if (item.isAlreadyFavorite) {
-                        CardBadge(
-                            text = "♥ Đã thích",
-                            bg = Color(0x55F43F5E),
-                            fg = Color(0xFFFDA4AF)
-                        )
-                    }
-                }
-
-                CardBadge(
-                    text = MediaFormatters.formatBytes(item.sizeBytes),
-                    bg = Color(0xE00F172A),
-                    fg = Color(0xFF7DD3FC)
-                )
-            }
-
-            // Bottom-right quick inspect / play controls
-            if (isTop) {
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (item.isVideo) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xD8090D16))
-                                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(10.dp))
-                                .clickable {
-                                    runCatching {
-                                        val intent = Intent(Intent.ACTION_VIEW).apply {
-                                            setDataAndType(Uri.parse(item.contentUriString), "video/*")
-                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                        }
-                                        context.startActivity(intent)
-                                    }
-                                }
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
-                            Text("▶ Xem video", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xD8090D16))
-                            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(10.dp))
-                            .clickable { zoomed = !zoomed }
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
-                    ) {
-                        Text(
-                            text = if (zoomed) "Thu vừa" else "🔍 Soi nét",
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-            }
-
-            // Directional Stamps
-            if (keepAlpha > 0.02f) {
-                SwipeStamp(
-                    text = "GIỮ LẠI ✓",
-                    color = CleanerColors.KeepGreen,
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(top = 64.dp, start = 20.dp)
-                        .alpha(keepAlpha)
-                        .graphicsLayer { rotationZ = -12f }
-                )
-            }
-            if (trashAlpha > 0.02f) {
-                SwipeStamp(
-                    text = "CHỜ XÓA (-${MediaFormatters.formatBytes(item.sizeBytes)})",
-                    color = CleanerColors.TrashRose,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 64.dp, end = 20.dp)
-                        .alpha(trashAlpha)
-                        .graphicsLayer { rotationZ = 12f }
-                )
-            }
-            if (favAlpha > 0.02f) {
-                SwipeStamp(
-                    text = "YÊU THÍCH ♥",
-                    color = CleanerColors.FavoriteAmber,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 52.dp)
-                        .alpha(favAlpha)
+                Text(
+                    text = "2x • Chạm đúp để thu vừa",
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium
                 )
             }
         }
 
-        // Card Footer
-        Column(
+        // Minimal bottom whisper strip (zero extra vertical space stolen from photo)
+        Row(
             modifier = Modifier
+                .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .background(CleanerColors.Surface)
-                .padding(horizontal = 16.dp, vertical = 10.dp)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color.Transparent, Color(0x94000000))
+                    )
+                )
+                .padding(horizontal = 12.dp, vertical = 9.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            val parts = buildList {
+                val d = MediaFormatters.formatDateShort(item.dateTakenMs)
+                if (d.isNotEmpty()) add(d)
+                add(MediaFormatters.formatBytes(item.sizeBytes))
+                if (item.isVideo) {
+                    val dur = MediaFormatters.formatDuration(item.durationMs)
+                    add(if (dur.isNotEmpty()) "🎬 $dur" else "🎬 Video")
+                }
+                if (item.isAlreadyFavorite) add("♥")
+            }
             Text(
-                text = MediaFormatters.formatDateTime(item.dateTakenMs),
-                color = CleanerColors.TextPrimary,
-                fontSize = 13.5.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "${item.displayName}${if (item.relativePath.isNotBlank()) " • ${item.relativePath}" else ""}",
-                color = CleanerColors.TextMuted,
+                text = parts.joinToString(" • "),
+                color = Color(0xE0FFFFFF),
                 fontSize = 11.5.sp,
+                fontWeight = FontWeight.Medium,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+
+            if (isTop && item.isVideo) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(Color(0xC80F172A))
+                        .border(0.5.dp, Color(0x40FFFFFF), RoundedCornerShape(999.dp))
+                        .clickable {
+                            runCatching {
+                                val intent = Intent(Intent.ACTION_VIEW).apply {
+                                    setDataAndType(Uri.parse(item.contentUriString), "video/*")
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                context.startActivity(intent)
+                            }
+                        }
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text("▶ Phát", color = Color.White, fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+
+        // Directional stamps appear only while swiping
+        if (keepAlpha > 0.02f) {
+            SwipeStamp(
+                text = "GIỮ LẠI ✓",
+                color = CleanerColors.KeepGreen,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(top = 40.dp, start = 20.dp)
+                    .alpha(keepAlpha)
+                    .graphicsLayer { rotationZ = -12f }
             )
         }
-    }
-}
-
-@Composable
-private fun CardBadge(text: String, bg: Color, fg: Color) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(999.dp))
-            .background(bg)
-            .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(999.dp))
-            .padding(horizontal = 9.dp, vertical = 4.dp)
-    ) {
-        Text(text = text, color = fg, fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+        if (trashAlpha > 0.02f) {
+            SwipeStamp(
+                text = "CHỜ XÓA (-${MediaFormatters.formatBytes(item.sizeBytes)})",
+                color = CleanerColors.TrashRose,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 40.dp, end = 20.dp)
+                    .alpha(trashAlpha)
+                    .graphicsLayer { rotationZ = 12f }
+            )
+        }
+        if (favAlpha > 0.02f) {
+            SwipeStamp(
+                text = "YÊU THÍCH ♥",
+                color = CleanerColors.FavoriteAmber,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 52.dp)
+                    .alpha(favAlpha)
+            )
+        }
     }
 }
 
@@ -830,6 +805,7 @@ private fun EmptyMonthCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 10.dp)
             .clip(RoundedCornerShape(22.dp))
             .background(CleanerColors.Surface)
             .border(1.dp, CleanerColors.Border, RoundedCornerShape(22.dp))
@@ -906,47 +882,64 @@ private fun ActionDock(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        DockButton(
+        CircleActionBtn(
             icon = "↶",
-            label = "Hoàn tác",
             enabled = canUndo,
             accent = CleanerColors.TextMuted,
-            onClick = onUndo,
-            modifier = Modifier.weight(0.8f)
+            onClick = onUndo
         )
-        DockButton(
-            icon = "🗑️",
-            label = "Chờ xóa",
+        PillActionBtn(
+            icon = "✕",
+            label = "Xóa",
             enabled = hasCard,
             accent = CleanerColors.TrashRose,
             onClick = onTrash,
-            modifier = Modifier.weight(1.1f)
+            modifier = Modifier.weight(1f)
         )
-        DockButton(
+        CircleActionBtn(
             icon = "♥",
-            label = "Yêu thích",
             enabled = hasCard,
             accent = CleanerColors.FavoriteAmber,
-            onClick = onFavorite,
-            modifier = Modifier.weight(1.05f)
+            onClick = onFavorite
         )
-        DockButton(
+        PillActionBtn(
             icon = "✓",
-            label = "Giữ lại",
+            label = "Giữ",
             enabled = hasCard,
             accent = CleanerColors.KeepGreen,
             onClick = onKeep,
-            modifier = Modifier.weight(1.1f)
+            modifier = Modifier.weight(1f)
         )
     }
 }
 
 @Composable
-private fun DockButton(
+private fun CircleActionBtn(
+    icon: String,
+    enabled: Boolean,
+    accent: Color,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(42.dp)
+            .alpha(if (enabled) 1f else 0.35f)
+            .clip(CircleShape)
+            .background(accent.copy(alpha = 0.14f))
+            .border(1.dp, accent.copy(alpha = 0.42f), CircleShape)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(icon, fontSize = 17.sp, color = accent, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun PillActionBtn(
     icon: String,
     label: String,
     enabled: Boolean,
@@ -954,18 +947,18 @@ private fun DockButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
+    Row(
         modifier = modifier
+            .height(42.dp)
             .alpha(if (enabled) 1f else 0.35f)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(999.dp))
             .background(accent.copy(alpha = 0.14f))
-            .border(1.dp, accent.copy(alpha = 0.45f), RoundedCornerShape(16.dp))
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(vertical = 10.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(2.dp)
+            .border(1.dp, accent.copy(alpha = 0.45f), RoundedCornerShape(999.dp))
+            .clickable(enabled = enabled, onClick = onClick),
+        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(icon, fontSize = 19.sp, color = accent, fontWeight = FontWeight.Bold)
-        Text(label, fontSize = 11.5.sp, color = CleanerColors.TextPrimary, fontWeight = FontWeight.Bold)
+        Text(icon, fontSize = 15.sp, color = accent, fontWeight = FontWeight.Black)
+        Text(label, fontSize = 13.5.sp, color = CleanerColors.TextPrimary, fontWeight = FontWeight.Bold)
     }
 }
